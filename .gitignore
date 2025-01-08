@@ -133,3 +133,5 @@ dist
 
 env
 # git remote add origin https://github.com/Intummadee/google_map_agent.git
+
+git push -u origin master
