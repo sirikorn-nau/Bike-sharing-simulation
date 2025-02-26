@@ -14,15 +14,18 @@ import networkx as nx
 from geopy.distance import geodesic 
 
 from function.distance_real import *
-from function_2.cbs import *
+from function_2.cbs_alogo import *
 from function_2.osm_route import *
 from function_2.mstar import *
 from function_2.create_map_2 import *
+from function_2.compare_agent import *
 
+from function_2.comparison_table import *
 
 from function.statistics import *
 from function.graph import *
 
+from static_var.station_location import station_locations
 
 
 # ดึงข้อมูลถนนจาก OpenStreetMap
@@ -95,30 +98,6 @@ def run_simulation():
     t_per_meter = 0.1           # กำหนดเวลา (วินาที) ที่ใช้เดิน 1 เมตร
     simulation_time_step = 1    # 1 วินาทีต่อ time step
 
-    # กำหนดสถานีจักรยาน
-    station_locations = [
-    (13.727868667926447, 100.77068388462067),  # เกกี
-    (13.727668037525024, 100.76436460018158),  # rnp
-    (13.729528421937207, 100.77500224113464),  # หอใน
-    (13.7295518720667, 100.77996164560318),    # วิทยา
-    (13.730672264410334, 100.78087896108627),  # ไอที
-    (13.726521574796058, 100.77518731355667),  # วิดวะ
-    (13.729210542172659, 100.77740550041199),  # พระเทพ
-    (13.727260, 100.778865), # หอสมุด
-    (13.730891, 100.782094), # โคเซน
-    (13.725848, 100.778457), # หอบุนนาค
-    (13.725851, 100.780719), # เกษตร
-    (13.723495, 100.780278), # หอ FBT
-    (13.726206, 100.775730), # u store
-    (13.726997, 100.772427), # ตึกโหล
-    (13.727148, 100.766849), # AJ
-    (13.731015, 100.775571), # แพทย์
-    (13.730176, 100.773168), # สนามกลาง
-    (13.728512, 100.772229), # ยิม
-    (13.728675, 100.776520), # ธนาคาร
-    (13.730839, 100.777137), # อธิการ
-    (13.728711, 100.778452), # ลอวสัน
-    ]
 
     # map boundaries
     min_lat = min(x[0] for x in station_locations)
@@ -416,6 +395,18 @@ def run_simulation():
     show_summary_chart_plotly(agent_grid_steps, list(cbs_grid_steps.values()))
 
 
+    
+    show_comparison_table(agent_grid_steps, cbs_grid_steps)
+
+
+    
+    compare_agent(
+        agent_grid_steps,  # จำนวน grid steps ของ A*
+        cbs_grid_steps,    # จำนวน grid steps ของ CBS
+        start_positions,   # ตำแหน่งเริ่มต้นของ agent
+        destination_positions,  # ตำแหน่งปลายทางของ agent
+        station_locations  # ตำแหน่งของสถานีทั้งหมด
+    )
 
   
 

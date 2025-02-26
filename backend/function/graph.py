@@ -7,7 +7,7 @@ import plotly.express as px
 import pandas as pd
 
 from function.distance_real import *
-from function_2.cbs import *
+from function_2.cbs_alogo import *
 from function_2.osm_route import *
 from function_2.mstar import *
 from function_2.create_map_2 import *

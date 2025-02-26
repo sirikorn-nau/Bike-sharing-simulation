@@ -12,7 +12,6 @@ import networkx as nx
 from geopy.distance import geodesic 
 
 from function.distance_real import *
-from function_2.cbs import *
 from function_2.osm_route import *
 from function_2.mstar import *
 from function_2.create_map_2 import *

@@ -13,7 +13,7 @@ import networkx as nx
 
 from geopy.distance import geodesic 
 
-from function_2.cbs import *
+from function_2.cbs_alogo import *
 
 # 🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°
 # M* Node class for search
