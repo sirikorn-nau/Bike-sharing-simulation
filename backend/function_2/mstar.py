@@ -15,6 +15,12 @@ from geopy.distance import geodesic
 
 from function_2.cbs_alogo import *
 
+# 2️⃣ ฟังก์ชันช่วยเหลือสำหรับ A* Search
+def heuristic(a, b):
+    return math.sqrt((a[0]-b[0])**2 + (a[1]-b[1])**2)
+
+
+
 # 🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°
 # M* Node class for search
 class MStarNode:
