@@ -63,3 +63,17 @@ def show_summary_chart_plotly(agent_grid_steps_abs, agent_grid_steps_cbs):
     df = create_summary_dataframe(agent_grid_steps_abs, agent_grid_steps_cbs)
     fig = px.bar(df, x='Agent', y=['ABS', 'CBS'], barmode='group', title='Comparison of Grid Steps: ABS vs CBS')
     st.plotly_chart(fig)
+
+
+
+
+# def heuristic(a, b):
+#     return geodesic(a, b).meters
+
+
+# def heuristic(a, b):
+#     return math.sqrt((a[0]-b[0])**2 + (a[1]-b[1])**2)
+
+
+def heuristic(a, b):
+    return geodesic(a, b).meters  # ใช้ระยะทาง geodesic เป็น heuristic

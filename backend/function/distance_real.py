@@ -12,7 +12,7 @@ def compute_segment_boundaries(path, t_per_meter, simulation_time_step):
     - ฟังก์ชันนี้ใช้คำนวณจุดแบ่งเวลา (time boundaries) สำหรับแต่ละส่วน (segment) ของเส้นทาง 
     - แปลงระยะทางจริงให้เป็นจำนวน time steps ในการจำลอง
     path: เส้นทางที่เป็นชุดของพิกัด
-    t_per_meter: เวลาที่ใช้ต่อระยะทาง 1 เมตร
+    t_per_meter: เวลาที่ใช้ในการเดินทางต่อระยะทาง 1 เมตร (หน่วย: time step ต่อเมตร)
     simulation_time_step: ขนาดของ time step ในการจำลอง
     """
     # t_per_meter = 0.1           # เวลาที่ใช้เดิน 1 เมตร (วินาที)

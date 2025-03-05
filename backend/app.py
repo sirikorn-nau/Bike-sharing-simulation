@@ -7,8 +7,11 @@ import json
 import time
 import streamlit.components.v1 as components
 import math
+import streamlit as st
 
 import osmnx as ox
+import os
+
 import networkx as nx
 
 from geopy.distance import geodesic 
@@ -28,8 +31,27 @@ from function.graph import *
 from static_var.station_location import station_locations
 
 
+
+import functools
+import time
+
+
+
+
+
+
+
 # ดึงข้อมูลถนนจาก OpenStreetMap
-road = ox.graph_from_place("Lat Krabang, Bangkok, Thailand", network_type="all")
+# road = ox.graph_from_place("Lat Krabang, Bangkok, Thailand", network_type="all")
+# ox.save_graphml(road, "lat_krabang_graph.graphml")
+
+graph_file = "lat_krabang_graph.graphml"
+if os.path.exists(graph_file):
+    road = ox.load_graphml(graph_file)
+else:
+    # road = ox.graph_from_place("Lat Krabang, Bangkok, Thailand", network_type="all")
+    road = ox.graph_from_place("Lat Krabang, Bangkok", network_type="all")
+    ox.save_graphml(road, graph_file)
 
 
 
@@ -37,6 +59,14 @@ road = ox.graph_from_place("Lat Krabang, Bangkok, Thailand", network_type="all")
 
 
 
+# def heuristic(a, b):
+#     return math.sqrt((a[0]-b[0])**2 + (a[1]-b[1])**2)
+
+def heuristic(a, b):
+    return geodesic(a, b).meters  # ใช้ระยะทาง geodesic เป็น heuristic
+
+# def heuristic(a, b):
+#     return geodesic(a, b).meters
 
 
 # 💌🧚‍♀️💗🌨🥡🍥 💌🧚 new 🥡🍥 💌🧚‍♀️💗🌨🥡🍥
@@ -54,6 +84,8 @@ def create_station_graph(station_locations):
     ⛰🌿🌻☀️☁️
     """
     G = nx.Graph()
+
+   
     
     # เพิ่ม nodes (สถานี)
     for station in station_locations:
@@ -94,6 +126,7 @@ def run_simulation():
     max_time_step = st.session_state.max_time_step
     num_bikes_per_station = st.session_state.num_bikes
 
+
     # ตั้งค่าความเร็วเดิน (เวลาต่อเมตร) และ simulation time step (วินาที)
     t_per_meter = 0.1           # กำหนดเวลา (วินาที) ที่ใช้เดิน 1 เมตร
     simulation_time_step = 1    # 1 วินาทีต่อ time step
@@ -125,85 +158,120 @@ def run_simulation():
 
     # 🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°
     #! ส่วน A* Alogorithm
-    full_paths_a_star = [] 
-    rental_events = []  
-    return_events = []  
-    agent_grid_steps = []  # จำนวน grid steps ที่แต่ละ agent เดิน (ก่อน padding)
+    full_paths_a_star = []  # เก็บเส้นทางทั้งหมดของทุก agent ที่คำนวณด้วยอัลกอริทึม A*
+    rental_events = []      # เก็บเหตุการณ์การเช่าจักรยาน (เวลาที่เช่า, สถานีที่เช่า)
+    return_events = []      # เก็บเหตุการณ์การคืนจักรยาน (เวลาที่คืน, สถานีที่คืน)
+    agent_grid_steps = []   # เก็บจำนวน grid steps ที่แต่ละ agent เดินจริง 
 
+    # วนลูปผ่านทุกคู่ของตำแหน่งเริ่มต้นและปลายทางของ agent
     for start_pos, dest_pos in zip(start_positions, destination_positions):
         print(f"A*: Agent เริ่มที่ {start_pos} และต้องไปที่ {dest_pos}")
 
-        # จัดเรียงสถานีทั้งหมดตามระยะทางจาก agent (ใกล้ -> ไกล) เพราะจะเช็คสถานีที่ใกล้ที่สุดก่อน , ถ้าสถานีนั้น ไม่มีจักรยาน → ให้เลือก สถานีที่ใกล้รองลงมา แต่ถ้ายังไม่มี → เลือกสถานีรองที่เหลือไปเรื่อย ๆ
+        # จัดเรียงสถานีทั้งหมดตามระยะทางจาก agent (ใกล้ไปไกล)
+        # เพราะเราต้องการเช็คสถานีที่ใกล้ที่สุดก่อน ถ้าไม่มีจักรยานก็ไปเช็คสถานีที่ใกล้ถัดไป
         sorted_stations = sorted(station_locations, key=lambda s: heuristic(start_pos, s))
 
-        # ค้นหาสถานีที่มีจักรยานเหลืออยู่
+
+        # ค้นหาสถานีที่มีจักรยานเหลืออยู่ โดยเริ่มจากสถานีที่ใกล้ที่สุดก่อน
         start_station = None
         for station in sorted_stations:
-            station_index = station_locations.index(station) # หา index ของสถานีนี้
-            if initial_station_bikes[station_index] > 0: # ตรวจสอบว่ามีจักรยานหรือไม่
-                start_station = station
+            station_index = station_locations.index(station)  # หา index ของสถานีในลิสต์ station_locations
+            if initial_station_bikes[station_index] > 0:      # ตรวจสอบว่าสถานีนี้มีจักรยานเหลืออยู่หรือไม่
+                start_station = station  # ถ้ามีจักรยาน ใช้สถานีนี้เป็นสถานีเริ่มต้น
                 break
+
+
+        
+        # ถ้าไม่มีสถานีไหนมีจักรยานเลย เลือกสถานีที่ใกล้ที่สุดเป็นสถานีเริ่มต้น (อาจจะต้องรอจักรยานมาเพิ่ม )
+        # ! แปลกๆ 
         if start_station is None:
             start_station = sorted_stations[0]
 
-        # สำหรับ drop-off (สถานีปลายทาง) เราเลือก 𝘀𝘁𝗮𝘁𝗶𝗼𝗻 ที่ใกล้ 𝗱𝗲𝘀𝘁𝗶𝗻𝗮𝘁𝗶𝗼𝗻 มากที่สุด
+
+
+        # min จะหาสถานีใน station_locations ที่มีค่า heuristic(dest_pos, s) น้อยที่สุด (คือสถานีที่ใกล้จุดหมายปลายทางที่สุด) สถานีนั้นจะถูกเก็บไว้ในตัวแปร end_station
         end_station = min(station_locations, key=lambda s: heuristic(dest_pos, s))
+
+
 
         # ขั้นตอน สร้างเส้นทาง: จุดเริ่มต้น → สถานีเช่า → (เส้นทาง A* ระหว่างสถานี) → จุดหมายปลายทาง
         # 1. จุดเริ่มต้น → สถานีเช่า
         # complete_path : list ที่เก็บเส้นทางของ agent ตั้งแต่เริ่มต้น จุดแรกคือ ตำแหน่งเริ่มต้นของ agent, จุดที่สองคือ สถานีเช่าจักรยาน (start_station) ที่เลือกไว้
         complete_path = [start_pos]
+        # complete_path: เส้นทางสมบูรณ์ของ agent (รวมจุดเริ่มต้น, สถานีเช่า, สถานีคืน, และจุดหมายปลายทาง)
 
-        # 2. สถานีเช่า → สถานีคืน (ด้วย a* alogorithm ⛩️)
-        #! 🚩 เอาแบบนี้ไปก่อน เราต้องใช้ a* algotithm หาแค่สถานียืมไปสถานีคืน
-        # ใช้เส้นทางที่ได้จาก OpenStreetMap จริง
-        osm_path = find_route_osm(road, start_station, end_station, 'a_star')
-        complete_path.extend(osm_path)
+
+
+        # 2. สถานีเช่า → สถานีคืน (ด้วย A* algorithm)
+         # ใช้เส้นทางจริงจาก OpenStreetMap (หรือแผนที่จำลอง) เพื่อหาเส้นทางระหว่างสถานี
+        osm_path = find_route_osm(road, start_station, end_station, 'a_star')  
+        complete_path.extend(osm_path)  # เพิ่มเส้นทางระหว่างสถานีเข้าไปในเส้นทางสมบูรณ์
+
+
 
         # 3. สถานีคืน → จุดหมายปลายทาง
+        # เพิ่มจุดหมายปลายทางเข้าไปในเส้นทางสมบูรณ์
         complete_path.append(dest_pos)
 
-        # full_paths เป็น list ที่เก็บเส้นทางของ agent ทุกคน
+
+
+        # เพิ่มเส้นทางสมบูรณ์ของ agent คนนี้เข้าไปในลิสต์ของเส้นทางทั้งหมด
         full_paths_a_star.append(complete_path)
 
 
-        # คำนวณเวลาที่ใช้เดินในแต่ละ segment
-        # คำนวณ segment boundaries ของ complete_path (ในหน่วย time step)
+        # คำนวณเวลาที่ใช้ในแต่ละช่วงของเส้นทาง (segments)
+        # boundaries คือลิสต์ของเวลาที่ agent ถึงแต่ละจุดในเส้นทาง (ในหน่วย time step)
         boundaries = compute_segment_boundaries(complete_path, t_per_meter, simulation_time_step)
+        # เช่น ถ้า complete_path = [A, B, C, D] และ boundaries = [0, 10, 20, 30] หมายความว่า: ที่เวลา 0: agent อยู่ที่จุด A , ที่เวลา 10: agent ถึงจุด B 
 
-        # จำนวน grid steps ที่ agent เดินจริง (ก่อนถึงจุดสิ้นสุดของ path)
-        active_steps = boundaries[-1]
+
+
+        # active_steps ตัวแปรนี้เก็บจำนวน time steps ที่ agent ใช้ในการเดินทางทั้งหมด (ตั้งแต่เริ่มต้นจนถึงจุดหมายปลายทาง)
+        active_steps = boundaries[-1] # boundaries[-1] ดึงค่าสุดท้ายในลิสต์ ซึ่งคือเวลาที่ agent ถึงจุดสุดท้ายของเส้นทาง (จุดหมายปลายทาง)
+
+
 
         # หาก active_steps เกิน max_time_step ให้ถือว่าเดิน max_time_step
+        # (คือ agent จะไม่สามารถเดินทางถึงจุดหมายได้ทันในการจำลอง)
         if active_steps > max_time_step:
             active_steps = max_time_step
-        agent_grid_steps.append(active_steps)
+        agent_grid_steps.append(active_steps) # เก็บจำนวน steps ของ agent คนนี้ ✨
 
-        # rental event: เมื่อ agent ถึงสถานีเช่า (complete_path[1])
+
+        # กำหนดเวลาเช่าจักรยาน = เวลาที่ agent ถึงสถานีเช่า (boundaries[1])
+        # ถ้าเวลาเกิน max_time_step ให้ใช้ max_time_step - 1 แทน
         rental_time = boundaries[1] if boundaries[1] < max_time_step else max_time_step - 1
 
-        # return event: เมื่อ agent ถึงสถานีคืน (complete_path[-2])
+        # กำหนดเวลาคืนจักรยาน = เวลาที่ agent ถึงสถานีคืน (boundaries[-2])
+        # ถ้าเวลาเกิน max_time_step ให้ใช้ max_time_step - 1 แทน
         return_time = boundaries[-2] if boundaries[-2] < max_time_step else max_time_step - 1
 
-        # บันทึก event
-        station_index = station_locations.index(start_station)
-        end_station_index = station_locations.index(end_station)
-        rental_events.append((rental_time, station_index))
-        return_events.append((return_time, end_station_index))
+        # บันทึกเหตุการณ์การเช่าและคืนจักรยาน
+        station_index = station_locations.index(start_station)  # index ของสถานีเช่า
+        end_station_index = station_locations.index(end_station)  # index ของสถานีคืน
+        rental_events.append((rental_time, station_index))  # เพิ่มเหตุการณ์เช่า (เวลา, สถานี)
+        return_events.append((return_time, end_station_index))  # เพิ่มเหตุการณ์คืน (เวลา, สถานี)
 
-        # ปรับจำนวนจักรยานในสถานีทันที
+
+        # ปรับจำนวนจักรยานในสถานีทันทีที่มีการเช่าและคืน
+        # ลดจำนวนจักรยานที่สถานีเช่า
         initial_station_bikes[station_index] -= 1
+        # เพิ่มจำนวนจักรยานที่สถานีคืน
         initial_station_bikes[end_station_index] += 1
+
+
 
     st.write("### a_star: จำนวน Grid Steps ที่แต่ละ Agent เดิน")
     for idx, steps in enumerate(agent_grid_steps):
         st.write(f"Agent {idx+1}: {steps} grid steps")
+
 
     # คำนวณตำแหน่งของ agent ในแต่ละ time step โดยใช้ compute_agent_timeline
     agents_positions_a_star = []
     for path in full_paths_a_star:
         timeline = compute_agent_timeline(path, t_per_meter, simulation_time_step, max_time_step)
         agents_positions_a_star.append(timeline)
+
 
     # ปรับปรุงจำนวนจักรยานในแต่ละสถานีตลอด timeline
     station_bikes_timeline = [[num_bikes_per_station] * len(station_locations) for _ in range(max_time_step)]
@@ -243,7 +311,9 @@ def run_simulation():
 
 
     # 🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°
+    print("🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°")
     # Run CBS algorithm
+    print("Starting CBS...")
     cbs_solution, cbs_timelines, cbs_grid_steps = cbs_search(
         graph,
         start_positions,
@@ -251,12 +321,16 @@ def run_simulation():
         station_locations,
         t_per_meter,
         simulation_time_step,
-        max_time_step
+        max_time_step,
+        road
     )
+    print("CBS finished!")
 
+    # if cbs_solution:
+    # Display grid steps for CBS
+    st.write("### CBS: จำนวน Grid Steps ที่แต่ละ Agent เดิน")
+    
     if cbs_solution:
-        # Display grid steps for CBS
-        st.write("### CBS: จำนวน Grid Steps ที่แต่ละ Agent เดิน")
         for agent_id, steps in cbs_grid_steps.items():
             st.write(f"Agent {agent_id+1}: {steps} grid steps")
         
@@ -283,137 +357,129 @@ def run_simulation():
     # 🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°
     # Run M* algorithm
 
-    # สร้างกราฟสำหรับ M* โดยเฉพาะ
-    road_graph = nx.Graph()
+    # # สร้างกราฟสำหรับ M* โดยเฉพาะ
+    # road_graph = nx.Graph()
     
-    # เพิ่มโหนดจาก OSM road network
-    for node, data in road.nodes(data=True):
-        road_graph.add_node(node)
+    # # เพิ่มโหนดจาก OSM road network
+    # for node, data in road.nodes(data=True):
+    #     road_graph.add_node(node)
     
-    # เพิ่ม edges
-    for u, v, data in road.edges(data=True):
-        # ใช้ weight เป็น length ถ้ามี
-        if 'length' in data:
-            road_graph.add_edge(u, v, weight=data['length'], length=data['length'])
-        else:
-            # ถ้าไม่มี length ให้คำนวณจากพิกัด
-            u_coords = (road.nodes[u]['y'], road.nodes[u]['x']) if 'y' in road.nodes[u] else None
-            v_coords = (road.nodes[v]['y'], road.nodes[v]['x']) if 'y' in road.nodes[v] else None
+    # # เพิ่ม edges
+    # for u, v, data in road.edges(data=True):
+    #     # ใช้ weight เป็น length ถ้ามี
+    #     if 'length' in data:
+    #         road_graph.add_edge(u, v, weight=data['length'], length=data['length'])
+    #     else:
+    #         # ถ้าไม่มี length ให้คำนวณจากพิกัด
+    #         u_coords = (road.nodes[u]['y'], road.nodes[u]['x']) if 'y' in road.nodes[u] else None
+    #         v_coords = (road.nodes[v]['y'], road.nodes[v]['x']) if 'y' in road.nodes[v] else None
             
-            if u_coords and v_coords:
-                try:
-                    distance = geodesic(u_coords, v_coords).meters
-                    road_graph.add_edge(u, v, weight=distance, length=distance)
-                except:
-                    road_graph.add_edge(u, v, weight=1, length=1)
-            else:
-                road_graph.add_edge(u, v, weight=1, length=1)
+    #         if u_coords and v_coords:
+    #             try:
+    #                 distance = geodesic(u_coords, v_coords).meters
+    #                 road_graph.add_edge(u, v, weight=distance, length=distance)
+    #             except:
+    #                 road_graph.add_edge(u, v, weight=1, length=1)
+    #         else:
+    #             road_graph.add_edge(u, v, weight=1, length=1)
     
-    # แปลงตำแหน่งเริ่มต้นและเป้าหมายเป็นโหนดที่มีในกราฟ
-    temp_start_positions = []
-    temp_goal_positions = []
+    # # แปลงตำแหน่งเริ่มต้นและเป้าหมายเป็นโหนดที่มีในกราฟ
+    # temp_start_positions = []
+    # temp_goal_positions = []
 
-    for start_pos in start_positions:
-        try:
-            start_node = ox.distance.nearest_nodes(road, start_pos[1], start_pos[0])
-            temp_start_positions.append(start_node)
-        except Exception as e:
-            print(f"Error finding nearest node for start position {start_pos}: {e}")
-            continue
+    # for start_pos in start_positions:
+    #     try:
+    #         start_node = ox.distance.nearest_nodes(road, start_pos[1], start_pos[0])
+    #         temp_start_positions.append(start_node)
+    #     except Exception as e:
+    #         print(f"Error finding nearest node for start position {start_pos}: {e}")
+    #         continue
             
-    for goal_pos in destination_positions:
-        try:
-            goal_node = ox.distance.nearest_nodes(road, goal_pos[1], goal_pos[0])
-            temp_goal_positions.append(goal_node)
-        except Exception as e:
-            print(f"Error finding nearest node for goal position {goal_pos}: {e}")
-            continue
+    # for goal_pos in destination_positions:
+    #     try:
+    #         goal_node = ox.distance.nearest_nodes(road, goal_pos[1], goal_pos[0])
+    #         temp_goal_positions.append(goal_node)
+    #     except Exception as e:
+    #         print(f"Error finding nearest node for goal position {goal_pos}: {e}")
+    #         continue
 
-    # ตรวจสอบว่ามีตำแหน่งเริ่มต้นและเป้าหมายที่ถูกต้องหรือไม่
-    if len(temp_start_positions) == 0 or len(temp_goal_positions) == 0:
-        st.write("ไม่สามารถหาโหนดที่เหมาะสมสำหรับตำแหน่งเริ่มต้นหรือเป้าหมายได้")
-    elif len(temp_start_positions) != len(temp_goal_positions):
-        st.write("จำนวนตำแหน่งเริ่มต้นและเป้าหมายไม่เท่ากัน")
-    else:
-        # เรียกใช้ M* algorithm
-        m_star_paths, m_star_timelines, m_star_grid_steps = find_route_m_star(
-            road_graph,
-            temp_start_positions,
-            temp_goal_positions,
-            t_per_meter,
-            simulation_time_step,
-            max_time_step
-        )
+    # # ตรวจสอบว่ามีตำแหน่งเริ่มต้นและเป้าหมายที่ถูกต้องหรือไม่
+    # if len(temp_start_positions) == 0 or len(temp_goal_positions) == 0:
+    #     st.write("ไม่สามารถหาโหนดที่เหมาะสมสำหรับตำแหน่งเริ่มต้นหรือเป้าหมายได้")
+    # elif len(temp_start_positions) != len(temp_goal_positions):
+    #     st.write("จำนวนตำแหน่งเริ่มต้นและเป้าหมายไม่เท่ากัน")
+    # else:
+    #     # เรียกใช้ M* algorithm
+    #     m_star_paths, m_star_timelines, m_star_grid_steps = find_route_m_star(
+    #         road_graph,
+    #         temp_start_positions,
+    #         temp_goal_positions,
+    #         t_per_meter,
+    #         simulation_time_step,
+    #         max_time_step
+    #     )
     
-    print("🍤🍤🍤🍤🍤🍤🍤🍤🍤🍤🍤🍤🍤🍤🍤🍤🍤🍤🍤🍤🍤🍤🍤🍤", m_star_paths)
+    # print("🍤🍤🍤🍤🍤🍤🍤🍤🍤🍤🍤🍤🍤🍤🍤🍤🍤🍤🍤🍤🍤🍤🍤🍤", m_star_paths)
 
-    if m_star_paths and len(m_star_paths) > 0:
-        # Display grid steps for M*
-        st.write("### M*: จำนวน Grid Steps ที่แต่ละ Agent เดิน")
-        for agent_id, steps in m_star_grid_steps.items():
-            st.write(f"Agent {agent_id+1}: {steps} grid steps")
+    # if m_star_paths and len(m_star_paths) > 0:
+    #     # Display grid steps for M*
+    #     st.write("### M*: จำนวน Grid Steps ที่แต่ละ Agent เดิน")
+    #     for agent_id, steps in m_star_grid_steps.items():
+    #         st.write(f"Agent {agent_id+1}: {steps} grid steps")
 
-        # แปลงเส้นทางจาก node ids เป็นพิกัด lat-lon
-        full_paths_m_star = []
-        agents_positions_m_star = []
+    #     # แปลงเส้นทางจาก node ids เป็นพิกัด lat-lon
+    #     full_paths_m_star = []
+    #     agents_positions_m_star = []
 
-        for agent_id in sorted(m_star_paths.keys()):
-            path = m_star_paths[agent_id]
-            full_path = []
+    #     for agent_id in sorted(m_star_paths.keys()):
+    #         path = m_star_paths[agent_id]
+    #         full_path = []
 
-            for node in path:
-                try:
-                    full_path.append((road.nodes[node]['y'], road.nodes[node]['x']))
-                except:
-                    # ใช้ node เดิมถ้ามันเป็นพิกัดอยู่แล้ว
-                    if isinstance(node, tuple):
-                        full_path.append(node)
+    #         for node in path:
+    #             try:
+    #                 full_path.append((road.nodes[node]['y'], road.nodes[node]['x']))
+    #             except:
+    #                 # ใช้ node เดิมถ้ามันเป็นพิกัดอยู่แล้ว
+    #                 if isinstance(node, tuple):
+    #                     full_path.append(node)
 
-            full_paths_m_star.append(full_path)
-            agents_positions_m_star.append(m_star_timelines[agent_id])
+    #         full_paths_m_star.append(full_path)
+    #         agents_positions_m_star.append(m_star_timelines[agent_id])
         
-        # Create M* visualization
-        st.write("### M* Traffic Simulation Map")
-        traffic_map_m_star = create_map(
-            full_paths_m_star,
-            agents_positions_m_star,
-            station_locations,
-            [[num_bikes_per_station]*len(station_locations) for _ in range(max_time_step)],
-            destination_positions
-        )
-        with st.container():
-            components.html(traffic_map_m_star._repr_html_(), height=600)
-    else:
-        st.write("M* could not find a valid solution with the given constraints")
+    #     # Create M* visualization
+    #     st.write("### M* Traffic Simulation Map")
+    #     traffic_map_m_star = create_map(
+    #         full_paths_m_star,
+    #         agents_positions_m_star,
+    #         station_locations,
+    #         [[num_bikes_per_station]*len(station_locations) for _ in range(max_time_step)],
+    #         destination_positions
+    #     )
+    #     with st.container():
+    #         components.html(traffic_map_m_star._repr_html_(), height=600)
+    # else:
+    #     st.write("M* could not find a valid solution with the given constraints")
 
 
 
-    if cbs_solution:
-        # แสดงสถิติสรุป
-        show_statistics(agent_grid_steps, list(cbs_grid_steps.values()))
-        
-    show_summary_chart_plotly(agent_grid_steps, list(cbs_grid_steps.values()))
-
-
-    
-    show_comparison_table(agent_grid_steps, cbs_grid_steps)
-
-
-    
-    compare_agent(
-        agent_grid_steps,  # จำนวน grid steps ของ A*
-        cbs_grid_steps,    # จำนวน grid steps ของ CBS
-        start_positions,   # ตำแหน่งเริ่มต้นของ agent
-        destination_positions,  # ตำแหน่งปลายทางของ agent
-        station_locations  # ตำแหน่งของสถานีทั้งหมด
-    )
+    # !🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°
+    # if cbs_solution:
+    #     show_statistics(agent_grid_steps, list(cbs_grid_steps.values()))
+    # show_summary_chart_plotly(agent_grid_steps, list(cbs_grid_steps.values()))
+    # show_comparison_table(agent_grid_steps, cbs_grid_steps)
+    # compare_agent(
+    #     agent_grid_steps,  # จำนวน grid steps ของ A*
+    #     cbs_grid_steps,    # จำนวน grid steps ของ CBS
+    #     start_positions,   # ตำแหน่งเริ่มต้นของ agent
+    #     destination_positions,  # ตำแหน่งปลายทางของ agent
+    #     station_locations  # ตำแหน่งของสถานีทั้งหมด
+    # )
 
   
 
 # 🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°
 
 
-import streamlit as st
 
 # สร้าง Sidebar
 with st.sidebar:
