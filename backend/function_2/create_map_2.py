@@ -13,16 +13,30 @@ import networkx as nx
 
 from geopy.distance import geodesic 
 
+def is_valid_path(path, road):
+    """
+    ตรวจสอบว่าเส้นทางเดินตามถนนหรือไม่
+    """
+    for i in range(len(path) - 1):
+        start_node = ox.distance.nearest_nodes(road, path[i][1], path[i][0])
+        end_node = ox.distance.nearest_nodes(road, path[i+1][1], path[i+1][0])
+        if not nx.has_path(road, start_node, end_node):
+            return False
+    return True
+
+
 # 3️⃣ ฟังก์ชัน create_map(...) → สร้างแผนที่และฝัง JavaScript animation
 #    ในส่วนนี้ เราจะไม่สร้าง station markers ด้วย Python แต่จะสร้างและอัปเดตใน JavaScript
-def create_map(full_paths, agents_positions, station_locations, station_bikes_timeline, destination_positions):
+def create_map(full_paths, agents_positions, station_locations, station_bikes_timeline, destination_positions, road):
     # สร้างแผนที่พื้นฐาน
     m = folium.Map(location=[13.728, 100.775], zoom_start=15)
 
     # วาดเส้นทางของ agent แต่ละคน (full_paths)
+    # for path in full_paths:
+    #     folium.PolyLine(path, color='yellow', weight=2).add_to(m)
     for path in full_paths:
-        folium.PolyLine(path, color='yellow', weight=2).add_to(m)
-
+        if is_valid_path(path, road):
+            folium.PolyLine(path, color='yellow', weight=2).add_to(m)
 
     # Marker Destination
     # destination_positions

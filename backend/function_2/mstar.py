@@ -221,45 +221,166 @@ def find_route_m_star(graph, start_positions, goal_positions, t_per_meter, simul
 # 🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°
 
 
-#🍤🍤🍤🍤🍤🍤หาเส้นทางตามถนน osmnx🍤🍤🍤🍤🍤🍤
+# #🍤🍤🍤🍤🍤🍤หาเส้นทางตามถนน osmnx🍤🍤🍤🍤🍤🍤
+# def find_route_osm(road, start_latlon, end_latlon, algorithm):
+#     # แปลงพิกัด latitude, longitude ให้เป็นโหนดที่ใกล้ที่สุดในกราฟถนน
+#     start_node = ox.distance.nearest_nodes(road, start_latlon[1], start_latlon[0])
+#     end_node = ox.distance.nearest_nodes(road, end_latlon[1], end_latlon[0])
+
+
+#     def get_edge_weight(current, neighbor):
+#         """Helper function to safely get edge weight"""
+#         edge_data = road.get_edge_data(current, neighbor)
+        
+#         # Handle different edge data formats
+#         if isinstance(edge_data, dict):
+#             return edge_data.get('length', 1)
+#         elif isinstance(edge_data, set):
+#             # If it's a set, try to get the first item's length
+#             if edge_data:
+#                 first_item = next(iter(edge_data))
+#                 if isinstance(first_item, dict):
+#                     return first_item.get('length', 1)
+#             return 1
+#         elif isinstance(edge_data, list):
+#             # If it's a list, try to get the first item's length
+#             if edge_data:
+#                 return edge_data[0].get('length', 1)
+#         return 1  # Default weight if no length found
+
+
+#     # 📌 เลือกอัลกอริธึมที่ใช้
+#     if algorithm == 'a_star':
+#         # Use A* algorithm
+#         try:
+#             route = nx.astar_path(road, start_node, end_node, weight='length')
+#         except nx.NetworkXNoPath:
+#             print(f"A*: No path found between {start_latlon} and {end_latlon}")
+#             return []
+            
+#     elif algorithm == 'cbs':
+#         # Use CBS-specific pathfinding
+#         try:
+#             # Initialize priority queue with starting node
+#             open_set = [(0, start_node)]
+#             came_from = {}
+#             g_score = {node: float('inf') for node in road.nodes}
+#             g_score[start_node] = 0
+            
+#             while open_set:
+#                 current_cost, current = heapq.heappop(open_set)
+                
+#                 if current == end_node:
+#                     # Reconstruct path
+#                     path = []
+#                     while current in came_from:
+#                         path.append(current)
+#                         current = came_from[current]
+#                     path.append(start_node)
+#                     route = path[::-1]
+#                     break
+                    
+#                 for neighbor in road.neighbors(current):
+#                     # Get edge weight using helper function
+#                     weight = get_edge_weight(current, neighbor)
+                    
+#                     tentative_g_score = g_score[current] + weight
+#                     if tentative_g_score < g_score[neighbor]:
+#                         came_from[neighbor] = current
+#                         g_score[neighbor] = tentative_g_score
+#                         f_score = tentative_g_score + heuristic(
+#                             (road.nodes[neighbor]['y'], road.nodes[neighbor]['x']),
+#                             end_latlon
+#                         )
+#                         heapq.heappush(open_set, (f_score, neighbor))
+#             else:
+#                 print(f"CBS: No path found between {start_latlon} and {end_latlon}")
+#                 return []
+        
+#         except Exception as e:
+#             print(f"CBS: Error finding path: {e}")
+#             return []
+    
+#     elif algorithm == 'm_star':
+#         try:
+#             paths, timelines, grid_steps = find_route_m_star(
+#                 road,
+#                 [start_node],
+#                 [end_node],
+#                 t_per_meter=0.1,
+#                 simulation_time_step=1,
+#                 max_time_steps=100
+#             )
+#             if paths:
+#                 route = list(paths.values())[0]  # Get first (and only) path
+#             else:
+#                 print(f"M*: No path found between {start_latlon} and {end_latlon}")
+#                 return []
+#         except Exception as e:
+#             print(f"M*: Error finding path: {e}")
+#             return []
+
+#     else:
+#         raise ValueError(f"Unknown algorithm: {algorithm}")
+
+#     # แปลง route จาก node ID เป็นพิกัด latitude, longitude
+#     return [(road.nodes[node]["y"], road.nodes[node]["x"]) for node in route]
 def find_route_osm(road, start_latlon, end_latlon, algorithm):
+    """
+    หาเส้นทางระหว่างสองจุดโดยใช้โครงข่ายถนน OSM
+    
+    Args:
+        road: กราฟโครงข่ายถนน OSM
+        start_latlon: จุดเริ่มต้นในรูปแบบ (lat, lon)
+        end_latlon: จุดปลายทางในรูปแบบ (lat, lon)
+        algorithm: อัลกอริทึมที่ใช้ ('a_star' หรือ 'cbs')
+        
+    Returns:
+        รายการพิกัด [(lat, lon), ...] ที่แสดงเส้นทาง
+    """
     # แปลงพิกัด latitude, longitude ให้เป็นโหนดที่ใกล้ที่สุดในกราฟถนน
     start_node = ox.distance.nearest_nodes(road, start_latlon[1], start_latlon[0])
     end_node = ox.distance.nearest_nodes(road, end_latlon[1], end_latlon[0])
+    
+    # ตรวจสอบว่าโหนดเริ่มต้นและปลายทางเชื่อมต่อกันหรือไม่
+    if not nx.has_path(road, start_node, end_node):
+        print(f"คำเตือน: ไม่พบเส้นทางที่เชื่อมต่อระหว่าง {start_latlon} และ {end_latlon}")
+        return [start_latlon, end_latlon]  # ส่งคืนเส้นตรงเป็นทางสำรอง
 
+    # ตรวจสอบว่าพบโหนดที่ถูกต้องหรือไม่
+    if start_node is None or end_node is None:
+        print(f"คำเตือน: ไม่พบโหนดถนนที่ถูกต้องใกล้ {start_latlon} หรือ {end_latlon}")
+        return [start_latlon, end_latlon]  # ส่งคืนเส้นตรงเป็นทางสำรอง
 
     def get_edge_weight(current, neighbor):
-        """Helper function to safely get edge weight"""
+        """
+        ดึงความยาวของเส้นทางระหว่างโหนด current และ neighbor
+        """
         edge_data = road.get_edge_data(current, neighbor)
-        
-        # Handle different edge data formats
-        if isinstance(edge_data, dict):
-            return edge_data.get('length', 1)
-        elif isinstance(edge_data, set):
-            # If it's a set, try to get the first item's length
-            if edge_data:
-                first_item = next(iter(edge_data))
-                if isinstance(first_item, dict):
-                    return first_item.get('length', 1)
-            return 1
-        elif isinstance(edge_data, list):
-            # If it's a list, try to get the first item's length
-            if edge_data:
+        if edge_data:
+            if isinstance(edge_data, dict):
+                return edge_data.get('length', 1)
+            elif isinstance(edge_data, list):
                 return edge_data[0].get('length', 1)
         return 1  # Default weight if no length found
 
+    # เส้นทางที่จะส่งคืน
+    route_nodes = []
 
     # 📌 เลือกอัลกอริธึมที่ใช้
     if algorithm == 'a_star':
-        # Use A* algorithm
+        # ใช้ A* algorithm
         try:
-            route = nx.astar_path(road, start_node, end_node, weight='length')
+            route_nodes = nx.astar_path(road, start_node, end_node, weight='length')
         except nx.NetworkXNoPath:
-            print(f"A*: No path found between {start_latlon} and {end_latlon}")
-            return []
+            print(f"A*: ไม่พบเส้นทางระหว่าง {start_latlon} และ {end_latlon}")
+            return [start_latlon, end_latlon]  # ส่งคืนเส้นตรงเป็นทางสำรอง
+        except Exception as e:
+            print(f"A*: เกิดข้อผิดพลาดในการหาเส้นทาง: {e}")
+            return [start_latlon, end_latlon]  # ส่งคืนเส้นตรงเป็นทางสำรอง
             
     elif algorithm == 'cbs':
-        # Use CBS-specific pathfinding
+        # ใช้ CBS-specific pathfinding
         try:
             # Initialize priority queue with starting node
             open_set = [(0, start_node)]
@@ -277,7 +398,7 @@ def find_route_osm(road, start_latlon, end_latlon, algorithm):
                         path.append(current)
                         current = came_from[current]
                     path.append(start_node)
-                    route = path[::-1]
+                    route_nodes = path[::-1]
                     break
                     
                 for neighbor in road.neighbors(current):
@@ -294,34 +415,37 @@ def find_route_osm(road, start_latlon, end_latlon, algorithm):
                         )
                         heapq.heappush(open_set, (f_score, neighbor))
             else:
-                print(f"CBS: No path found between {start_latlon} and {end_latlon}")
-                return []
+                print(f"CBS: ไม่พบเส้นทางระหว่าง {start_latlon} และ {end_latlon}")
+                return [start_latlon, end_latlon]  # ส่งคืนเส้นตรงเป็นทางสำรอง
         
         except Exception as e:
-            print(f"CBS: Error finding path: {e}")
-            return []
+            print(f"CBS: เกิดข้อผิดพลาดในการหาเส้นทาง: {e}")
+            return [start_latlon, end_latlon]  # ส่งคืนเส้นตรงเป็นทางสำรอง
     
-    elif algorithm == 'm_star':
-        try:
-            paths, timelines, grid_steps = find_route_m_star(
-                road,
-                [start_node],
-                [end_node],
-                t_per_meter=0.1,
-                simulation_time_step=1,
-                max_time_steps=100
-            )
-            if paths:
-                route = list(paths.values())[0]  # Get first (and only) path
-            else:
-                print(f"M*: No path found between {start_latlon} and {end_latlon}")
-                return []
-        except Exception as e:
-            print(f"M*: Error finding path: {e}")
-            return []
-
-    else:
-        raise ValueError(f"Unknown algorithm: {algorithm}")
-
-    # แปลง route จาก node ID เป็นพิกัด latitude, longitude
-    return [(road.nodes[node]["y"], road.nodes[node]["x"]) for node in route]
+    # ถ้าไม่พบเส้นทาง ส่งคืนเส้นตรง
+    if not route_nodes:
+        print(f"ไม่พบเส้นทางระหว่าง {start_latlon} และ {end_latlon}")
+        return [start_latlon, end_latlon]
+    
+    # ⭐ แปลงโหนดกราฟเป็นพิกัด lat, lon
+    route_coords = []
+    for node in route_nodes:
+        # ดึงข้อมูลของโหนด
+        node_data = road.nodes[node]
+        lat = node_data.get('y')  # latitude
+        lon = node_data.get('x')  # longitude
+        if lat is not None and lon is not None:
+            route_coords.append((lat, lon))
+    
+    # ถ้าเส้นทางว่างเปล่า (ไม่มีพิกัดถูกดึงออกมา) ให้ส่งคืนเส้นตรง
+    if not route_coords:
+        print(f"พบเส้นทางแต่ไม่สามารถดึงพิกัดได้ระหว่าง {start_latlon} และ {end_latlon}")
+        return [start_latlon, end_latlon]
+    
+    # เพิ่มจุดเริ่มต้นและปลายทางของเส้นทาง ถ้าไม่ได้อยู่ในเส้นทางอยู่แล้ว
+    if route_coords[0] != start_latlon:
+        route_coords.insert(0, start_latlon)
+    if route_coords[-1] != end_latlon:
+        route_coords.append(end_latlon)
+    
+    return route_coords
