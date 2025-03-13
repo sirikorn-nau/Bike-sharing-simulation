@@ -19,7 +19,6 @@ from geopy.distance import geodesic
 from function.distance_real import *
 from function_2.cbs_alogo import *
 from function_2.osm_route import *
-from function_2.mstar import *
 from function_2.create_map_2 import *
 from function_2.compare_agent import *
 
@@ -37,6 +36,7 @@ import time
 
 
 
+from function_2.m_star_Fame import *
 
 
 
@@ -318,6 +318,55 @@ def run_simulation():
     else:
         st.write("CBS could not find a valid solution with the given constraints")
 
+
+
+
+    print("🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°")
+    m_star_solution, m_star_timelines, m_star_grid_steps = m_star_search(
+        graph,
+        start_positions,
+        destination_positions,
+        station_locations,
+        t_per_meter,
+        simulation_time_step,
+        max_time_step,
+        road
+    )
+    print("M* finished!")
+
+    # Display M* results
+    st.write("### M*: จำนวน Grid Steps ที่แต่ละ Agent เดิน")
+    for agent_id, steps in m_star_grid_steps.items():
+        st.write(f"Agent {agent_id+1}: {steps} grid steps")
+
+    # Visualize M* results
+    st.write("### M* Traffic Simulation Map")
+    traffic_map_m_star = create_map(
+        list(m_star_solution.values()),
+        list(m_star_timelines.values()),
+        station_locations,
+        [[num_bikes_per_station]*len(station_locations) for _ in range(max_time_step)],
+        destination_positions, road
+    )
+    with st.container():
+        components.html(traffic_map_m_star._repr_html_(), height=600)
+
+
+
+
+
+    # def show_statistics(agent_grid_steps_abs, agent_grid_steps_cbs):
+    show_statistics(agent_grid_steps, list(cbs_grid_steps.values()))
+
+    # def show_summary_chart_plotly(agent_grid_steps_abs, agent_grid_steps_cbs):
+    show_summary_chart_plotly(agent_grid_steps, list(cbs_grid_steps.values()))
+
+    # def show_comparison_table(agent_grid_steps_a_star, cbs_grid_steps):
+    show_comparison_table(agent_grid_steps, cbs_grid_steps)
+
+
+    # def compare_agent(agent_grid_steps_a_star, cbs_grid_steps, start_positions, destination_positions, station_locations):
+    compare_agent(agent_grid_steps, cbs_grid_steps , start_positions, destination_positions, station_locations)
 
 # 🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°
 
