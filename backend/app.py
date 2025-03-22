@@ -123,7 +123,7 @@ def a_star_search(graph, start, goal):
 # 4️⃣ ฟังก์ชัน run_simulation() → รันการจำลอง
 def run_simulation():
     num_persons = st.session_state.num_persons
-    max_time_step = st.session_state.max_time_step
+    max_time_step = st.session_state.max_time_step_input
     num_bikes_per_station = st.session_state.num_bikes
 
 
@@ -356,36 +356,83 @@ def run_simulation():
 
 
     # def show_statistics(agent_grid_steps_abs, agent_grid_steps_cbs):
-    show_statistics(agent_grid_steps, list(cbs_grid_steps.values()))
+    # print("list(m_star_grid_steps.values())", list(cbs_grid_steps.values()))
+    # print("list(m_star_grid_steps.values())", list(m_star_grid_steps.values()))
+    show_statistics(agent_grid_steps, list(cbs_grid_steps.values()),  list(m_star_grid_steps.values()))
 
     # def show_summary_chart_plotly(agent_grid_steps_abs, agent_grid_steps_cbs):
-    show_summary_chart_plotly(agent_grid_steps, list(cbs_grid_steps.values()))
+    show_summary_chart_plotly(agent_grid_steps, list(cbs_grid_steps.values()), list(m_star_grid_steps.values()))
 
-    # def show_comparison_table(agent_grid_steps_a_star, cbs_grid_steps):
-    show_comparison_table(agent_grid_steps, cbs_grid_steps)
+    # # def show_comparison_table(agent_grid_steps_a_star, cbs_grid_steps):
+    show_comparison_table(agent_grid_steps, cbs_grid_steps, m_star_grid_steps)
 
 
-    # def compare_agent(agent_grid_steps_a_star, cbs_grid_steps, start_positions, destination_positions, station_locations):
-    compare_agent(agent_grid_steps, cbs_grid_steps , start_positions, destination_positions, station_locations)
+    # # def compare_agent(agent_grid_steps_a_star, cbs_grid_steps, start_positions, destination_positions, station_locations):
+    compare_agent(agent_grid_steps, cbs_grid_steps, m_star_grid_steps, start_positions, destination_positions, station_locations)
+
+
+
+
+
+
+
+
+
+
+
 
 # 🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°
-
+if "rerun_done" not in st.session_state:
+    if "max_time_step_input" in st.session_state:
+        del st.session_state["max_time_step_input"]
+        st.session_state["rerun_done"] = True  # ป้องกันไม่ให้ rerun ซ้ำเรื่อยๆ
+        st.rerun()
 
 
 # สร้าง Sidebar
 with st.sidebar:
     st.header("Configuration")
-    st.number_input("Max Time Steps:", min_value=1, value=100, key='max_time_step')
+    st.number_input("Max Time Steps:", min_value=1, value=500, key='max_time_step_input')
     st.number_input("Number of Bicycles in the Station:", min_value=1, value=10, key='num_bikes')
     option = st.radio("Population", ("Total Population", "Random Population Range"))
-    with st.container():
-        if option == "Total Population":
-            value = st.number_input("Total Population:", min_value=1, value=5, key='num_persons')
-        else:
-            value = st.slider("Random Population Range", 0, 200, 10)
+    # with st.container():
+    #     if option == "Total Population":
+    #         # ใช้จำนวนประชากรที่กำหนดไว้แน่นอน
+    #         total_population = st.number_input("Total Population:", min_value=1, value=5, key='num_persons')
+    #         if 'population' not in st.session_state:
+    #             st.session_state.population = total_population
+    #         else:
+    #             st.session_state.population = total_population
+    #     else:
+    #         # เลือกช่วงประชากรและสุ่มค่า
+    #         min_pop = st.number_input("Minimum Population:", min_value=1, value=5, key='min_pop')
+    #         max_pop = st.number_input("Maximum Population:", min_value=min_pop, value=50, key='max_pop')
+            
+    #         if st.button("Generate Random Population", key='gen_random_pop'):
+    #             random_pop = random.randint(min_pop, max_pop)
+    #             st.session_state.population = random_pop
+    #             st.success(f"Random population generated: {random_pop}")
+
+    # แสดง UI ตามตัวเลือกที่เลือก
+    if option == "Total Population":
+        # แบบกำหนดจำนวนแน่นอน
+        st.session_state.population = st.number_input("Total Population:", min_value=1, value=5, key='num_persons')
+    else:
+        # แบบสุ่มในช่วงที่กำหนด
+        min_pop = st.number_input("Minimum Population:", min_value=1, value=5, key='min_pop')
+        max_pop = st.number_input("Maximum Population:", min_value=min_pop, value=50, key='max_pop')
+        
+        if st.button("Generate Random Population", key='gen_random_pop'):
+            random_pop = random.randint(min_pop, max_pop)
+            st.session_state.population = random_pop
+            st.success(f"Random population generated: {random_pop}")
+            
+        # แสดงค่าประชากรปัจจุบัน (กรณีที่เคยสุ่มแล้ว)
+        if option == "Random Population Range":
+            st.write(f"Current population: {st.session_state.population}")
 
     col1, col2, col3 = st.sidebar.columns([1, 2, 1])
-    with col2:
+    with col2:  
         run_sim_bttn = st.button("Run Simulation")
 
 # 5️⃣ ส่วนอินพุต Streamlit
