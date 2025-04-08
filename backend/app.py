@@ -7,7 +7,6 @@ import json
 import time
 import streamlit.components.v1 as components
 import math
-import streamlit as st
 
 import osmnx as ox
 import os
@@ -157,8 +156,6 @@ def run_simulation():
     # กำหนดจำนวนจักรยานเริ่มต้นในแต่ละสถานี
     initial_station_bikes = [num_bikes_per_station] * len(station_locations)
 
-    # 🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°🪩🫧🍸🥂🫧✧˖°
-    #! ส่วน A* Alogorithm
     full_paths_a_star = []  # เก็บเส้นทางทั้งหมดของทุก agent ที่คำนวณด้วยอัลกอริทึม A*
     rental_events = []      # เก็บเหตุการณ์การเช่าจักรยาน (เวลาที่เช่า, สถานีที่เช่า)
     return_events = []      # เก็บเหตุการณ์การคืนจักรยาน (เวลาที่คืน, สถานีที่คืน)
